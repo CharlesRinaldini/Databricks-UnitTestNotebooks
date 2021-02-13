@@ -1,0 +1,79 @@
+trigger:
+  branches:
+    include:
+    - development
+  paths:
+    include:
+    - /Databricks/Notebooks/
+    - /Databricks/UnitTest/
+    - /Scripts/Databricks/
+name: $(Build.DefinitionName)_$(SourceBranchName)_$(Build.Reason)_$(Date:yyyyMMdd)$(Rev:.r)
+jobs:
+- job: Job_1
+  displayName: Build
+  pool:
+    vmImage: ubuntu-16.04
+  steps:
+  - checkout: self
+  - task: configuredatabricks@0
+    displayName: Configure Databricks CLI
+    inputs:
+      url: $(databricks-workspaceURL)
+      token: $(databricks-token)
+  - task: startcluster@0
+    displayName: Starting Cluster $(databricks-clusterId)
+    inputs:
+      clusterid: $(databricks-clusterId)
+  - task: deploynotebooks@0
+    displayName: 'Deploy Notebooks to Workspace'
+    inputs:
+      notebooksFolderPath: Databricks/Notebooks/
+      workspaceFolder: /ERDW/
+  - task: CopyFiles@2
+    displayName: 'Copy Files to: /home/vsts/'
+    inputs:
+      SourceFolder: Databricks/UnitTest/configs
+      Contents: .databricks-connect
+      TargetFolder: /home/vsts/
+  - task: UsePythonVersion@0
+    displayName: Use Python $(python.version)
+    inputs:
+      versionSpec: $(python.version)
+  - task: CmdLine@2
+    displayName: Install Dependencies
+    inputs:
+      script: python -m pip install --upgrade pip && pip install -r "requirements.txt"
+      workingDirectory: Databricks/UnitTest
+  - task: CmdLine@2
+    displayName: pytest
+    inputs:
+      script: python -m pytest unittests --doctest-modules --junitxml=junit/test-results.xml
+      workingDirectory: Databricks/UnitTest
+  - task: PublishTestResults@2
+    displayName: Publish Test Results **/test-*.xml
+    inputs:
+      testResultsFiles: '**/test-*.xml'
+      searchFolder: Databricks/UnitTest
+      mergeTestResults: true
+      failTaskOnFailedTests: true
+  - task: CopyFiles@2
+    displayName: 'Copy Files to: $(Build.ArtifactStagingDirectory)\Databricks\Scripts'
+    inputs:
+      SourceFolder: Scripts/Databricks/
+      Contents: >
+        *.ps1
+      TargetFolder: $(Build.ArtifactStagingDirectory)\Databricks\Scripts
+  - task: CopyFiles@2
+    displayName: 'Copy Files to: $(Build.ArtifactStagingDirectory)\Databricks\Notebooks'
+    inputs:
+      SourceFolder: Databricks/Notebooks/
+      Contents: >
+        **\*.ipynb
+
+        **\*.py
+      TargetFolder: $(Build.ArtifactStagingDirectory)\Databricks\Notebooks
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Artifact: $(Build.BuildNumber)'
+    inputs:
+      ArtifactName: $(Build.BuildNumber)
+...
