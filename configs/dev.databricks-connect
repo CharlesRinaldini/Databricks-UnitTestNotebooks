@@ -1,0 +1,7 @@
+{
+  "host": "https://<your_databricks_url>.azuredatabricks.net",
+  "port": "15001",
+  "token": "<your_databricks_token>",
+  "cluster_id": "<your_databricks_cluster_id>",
+  "org_id": "<your_databricks_org_id>"
+}
