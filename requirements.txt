@@ -1,0 +1,5 @@
+pytest
+requests
+databricks-connect==7.3.*
+setuptools~=53.0.0
+wheel
